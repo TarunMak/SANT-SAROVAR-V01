@@ -111,6 +111,10 @@
             }
         </style>
         <title>Sant Sarovar Barrage</title>
+        <!-- Include Firebase SDK -->
+        <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script>
+
         <script src="./resources/ol.js"></script>
     </head>
     <body>
@@ -158,94 +162,41 @@
         <script src="./resources/qgis2web.js"></script>
         
         <script>
-            document.addEventListener("DOMContentLoaded", function() {
-                var baseLayer = new ol.layer.Tile({
-                    source: new ol.source.OSM(),
-                    title: 'Base Map',
-                    type: 'base',
-                    visible: true
-                });
-                
-                var layers = [
-                    { layer: lyr_SANSAROVARTODHAROISITECATCHMENT_UPDATED_1, title: "Catchment Area" },
-                    { layer: lyr_SAN_SAROVAR_SELECTED_DRAINAGELINE_1KM2_2, title: "Drainage Line" },
-                    { layer: lyr_santsarovarsite_3, title: "Sant Sarovar Site" }
-                ];
-                
-                var map = new ol.Map({
-                    target: 'map',
-                    layers: [baseLayer].concat(layers.map(l => l.layer)),
-                    view: new ol.View({
-                        center: ol.proj.fromLonLat([78.9629, 20.5937]),
-                        zoom: 6
-                    })
-                });
-                
-                var layerList = document.getElementById("layer-list");
-                layers.forEach(function(item) {
-                    var layerItem = document.createElement("div");
-                    layerItem.className = "layer-item";
-                    
-                    var checkbox = document.createElement("input");
-                    checkbox.type = "checkbox";
-                    checkbox.checked = item.layer.getVisible();
-                    checkbox.onchange = function() {
-                        item.layer.setVisible(this.checked);
-                    };
-                    
-                    var label = document.createElement("label");
-                    label.textContent = item.title;
-                    
-                    layerItem.appendChild(checkbox);
-                    layerItem.appendChild(label);
-                    layerList.appendChild(layerItem);
-                });
+            // Firebase configuration
+            const firebaseConfig = {
+                apiKey: "YOUR_API_KEY",
+                authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+                databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
+                projectId: "YOUR_PROJECT_ID",
+                storageBucket: "YOUR_PROJECT_ID.appspot.com",
+                messagingSenderId: "YOUR_SENDER_ID",
+                appId: "YOUR_APP_ID"
+            };
+            
+            // Initialize Firebase
+            const app = firebase.initializeApp(firebaseConfig);
+            const database = firebase.database(app);
+            const chatRef = database.ref('chatMessages');
 
-                map.on('click', function(event) {
-                    map.forEachFeatureAtPixel(event.pixel, function(feature) {
-                        var infoContent = '<h4>Feature Information</h4>';
-                        var attributes = feature.getProperties();
-                        var description = attributes['description'] || "No description available.";
-                        var imageUrl = attributes['image_url'] || null;
-
-                        // Display the description
-                        var infoDescription = document.getElementById('info-description');
-                        infoDescription.textContent = description;
-
-                        // Display the image if available
-                        var infoImage = document.getElementById('info-image');
-                        if (imageUrl) {
-                            infoImage.src = imageUrl;
-                            infoImage.style.display = 'block';
-                        } else {
-                            infoImage.style.display = 'none';
-                        }
-
-                        // Loop through all properties to show other feature details
-                        for (var key in attributes) {
-                            if (key !== 'description' && key !== 'image_url') {
-                                infoContent += '<p><strong>' + key + ':</strong> ' + attributes[key] + '</p>';
-                            }
-                        }
-
-                        document.getElementById('info-content').innerHTML = infoContent;
+            // Send a new message to Firebase
+            document.getElementById('chat-send-btn').addEventListener('click', function() {
+                const message = document.getElementById('chat-input').value;
+                if (message.trim() !== "") {
+                    chatRef.push().set({
+                        message: message,
+                        timestamp: Date.now()
                     });
-                });
+                    document.getElementById('chat-input').value = ""; // Clear the input
+                }
+            });
 
-                // Chat functionality
-                var chatInput = document.getElementById('chat-input');
-                var chatMessages = document.getElementById('chat-messages');
-
-                document.getElementById('chat-send-btn').addEventListener('click', function() {
-                    var message = chatInput.value;
-                    if (message.trim() !== "") {
-                        var messageDiv = document.createElement('div');
-                        messageDiv.textContent = message;
-                        chatMessages.appendChild(messageDiv);
-                        chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll to the latest message
-                        chatInput.value = ""; // Clear input
-                    }
-                });
+            // Listen for new messages and display them
+            chatRef.on('child_added', function(snapshot) {
+                const messageData = snapshot.val();
+                const messageDiv = document.createElement('div');
+                messageDiv.textContent = messageData.message;
+                document.getElementById('chat-messages').appendChild(messageDiv);
+                document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight; // Auto-scroll to the latest message
             });
         </script>
     </body>
